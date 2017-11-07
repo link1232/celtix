@@ -20,3 +20,13 @@ struct ext2_opts {
 
 void usage(void);
 void parse_cmdline(int argc, char *[], struct ext2_opts *);
+void init_ext2_super_block(struct ext2_super_block *,
+                           struct ext2_opts        *);
+unsigned long get_block_size(unsigned long);
+unsigned long get_target_size(unsigned long, char *);
+void get_inode_ratio(char *,
+                     unsigned long,
+                     unsigned long,
+                     unsigned long *,
+                     unsigned long *);
+
