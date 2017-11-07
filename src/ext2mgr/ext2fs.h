@@ -110,15 +110,6 @@ struct ext2_file {
         u1byte_t  name[255];
 };
 
-struct ext2_block_group {
-        struct ext2_super_block         *super_block;
-        struct ext2_group_descriptor    *group_desc_table;
-        u1byte_t                        *block_bitmap; 
-        u1byte_t                        *inode_bitmap;
-        struct ext2_inode               *inode_table;
-        struct ext2_file                *file;
-};
-        
 /* Ext2 enums */
 enum _ext2_filesystem_state {
         VALID_EXT2_FILESYSTEM = 1,
