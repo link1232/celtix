@@ -1,0 +1,22 @@
+#include <time.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <string.h>
+#include <sys/stat.h>
+
+#include "ext2fs.h"
+
+struct ext2_opts {
+        int             summary_only;
+        char            *target_path;
+        char            *usage_type;
+        char            *volume_label;
+        unsigned int    block_size;
+        unsigned int    bytes_per_inode;
+        unsigned int    number_of_inodes;
+        unsigned long   fs_size;
+};
+
+void usage(void);
+void parse_cmdline(int argc, char *[], struct ext2_opts *);
