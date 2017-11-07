@@ -111,6 +111,7 @@ void parse_cmdline(int argc, char *argv[], struct ext2_opts *cmd_line)
 void init_ext2_super_block(struct ext2_super_block *sb,
                            struct ext2_opts        *cmd_line)
 {
+        int           i;
         unsigned long inode_ratio;
         unsigned long inode_size;
         unsigned long inodes_per_group;
@@ -120,6 +121,8 @@ void init_ext2_super_block(struct ext2_super_block *sb,
         unsigned long total_blocks;
 
         time_t time_now = time(NULL);
+
+        srand(time_now);
 
         block_size         = get_block_size(cmd_line->block_size);
         blocks_per_group   = block_size * BITS_PER_BYTE;
@@ -136,8 +139,8 @@ void init_ext2_super_block(struct ext2_super_block *sb,
                         &inode_ratio);
 
         inodes_per_group   =
-                (((total_blocks / inode_ratio) / total_block_groups) & -7) +
-                (block_size / inode_size);
+                ((((total_blocks * block_size) / inode_ratio)
+                / total_block_groups) & -7) + (block_size / inode_size);
 
         sb->total_inodes                = inodes_per_group * total_block_groups;
         sb->total_blocks                = total_blocks;
@@ -173,7 +176,9 @@ void init_ext2_super_block(struct ext2_super_block *sb,
         sb->compatible_features         = EXT2_CF_EXT_ATTR | EXT2_CF_DIR_INDEX;
         sb->incompatible_features       = EXT2_ICF_FILETYPE;
         sb->readonly_features           = EXT2_ROCF_SPARSE_SUPER;
-        //sb->volume_uuid[16];
+        for (i = 0; i < sizeof(sb->volume_uuid); i++)
+                sb->volume_uuid[i] = rand() % 255 + 1;
+
         if (NULL != cmd_line->volume_label) {
                 snprintf(sb->volume_name,
                          sizeof(sb->volume_name) - 1,
@@ -236,7 +241,7 @@ unsigned long get_target_size(unsigned long user_fs_size, char *user_target)
         struct stat tmp = { 0 };
 
         if (0 != user_fs_size
-        &&  10240 >= user_fs_size)
+        &&  10240 <= user_fs_size)
                 return user_fs_size;
 
         if (NULL != user_target
