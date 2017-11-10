@@ -29,4 +29,7 @@ void get_inode_ratio(char *,
                      unsigned long,
                      unsigned long *,
                      unsigned long *);
-
+void init_ext2_group_desc(struct ext2_super_block *,
+                          struct ext2_group_descriptor *);
+struct ext2_inode * init_ext2_resvd_inodes(struct ext2_super_block *,
+                                           struct ext2_group_descriptor *);

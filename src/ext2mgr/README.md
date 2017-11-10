@@ -4,7 +4,7 @@ A simple program to create, and add files to, an ext2 file system. Resulting fil
 ## To-Do list
 - [X] Command line options parsing.
 - [X] Initialize super block.
-- [ ] Initialize group descriptors.
-- [ ] Initialize inode table.
+- [X] Initialize group descriptors.
+- [X] Initialize inode table.
 - [ ] Initialize root and lost+found directories.
 - [ ] Write blocks.

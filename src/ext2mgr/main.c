@@ -4,8 +4,10 @@
 
 int main(int argc, char *argv[])
 {
-        struct ext2_opts cmd_line  = { 0 };
-        struct ext2_super_block sb = { 0 };
+        struct ext2_opts                cmd_line      = { 0 };
+        struct ext2_super_block         sb            = { 0 };
+        struct ext2_group_descriptor    gd            = { 0 };
+        struct ext2_inode               *resvd_inodes = NULL;
 
         if (argc < 2) {
                 usage();
@@ -16,6 +18,8 @@ int main(int argc, char *argv[])
         }
 
         init_ext2_super_block(&sb, &cmd_line);
+        init_ext2_group_desc(&sb, &gd);
+        resvd_inodes = init_ext2_resvd_inodes(&sb, &gd);
 
         return EXIT_SUCCESS;
 }
@@ -283,4 +287,112 @@ void get_inode_ratio(char          *user_usage_type,
                 *inode_ratio = 65536;
                 *inode_size  = 256;
         }
+}
+
+void init_ext2_group_desc(struct ext2_super_block *sb,
+                          struct ext2_group_descriptor *gd)
+{
+        gd->block_bitmap_block          = sb->first_data_block   + 2;
+        gd->inode_bitmap_block          = gd->block_bitmap_block + 1;
+        gd->inode_table_block           = gd->inode_bitmap_block + 1;
+        gd->group_free_blocks           = sb->blocks_per_group;
+        gd->group_free_inodes           = sb->inodes_per_group;
+        gd->group_used_directories      = 0;
+        gd->padding                     = 0;
+        memset(gd->reserved,
+               0,
+               sizeof(gd->reserved));
+}
+
+struct ext2_inode * init_ext2_resvd_inodes(struct ext2_super_block *sb,
+                                           struct ext2_group_descriptor *gd)
+{
+        int                i;
+        unsigned int       block_size;
+        struct ext2_inode *r_inodes;
+
+        r_inodes = (struct ext2_inode *) calloc(TOTAL_RESERVED_INODES,
+                                                    sizeof(struct ext2_inode));
+        if (NULL == r_inodes) {
+                printf("Error: Failed to get memory for reserved inodes\n");
+                exit(EXIT_FAILURE);
+        }
+
+        block_size = (1024 << sb->block_size_shift);
+
+        r_inodes[EXT2_RVDI_ROOT].mode               = EXT2_IM_OTHER_EXECUTE
+                                                    | EXT2_IM_OTHER_READ
+                                                    | EXT2_IM_GROUP_EXECUTE
+                                                    | EXT2_IM_GROUP_READ
+                                                    | EXT2_IM_USER_EXECUTE
+                                                    | EXT2_IM_USER_WRITE
+                                                    | EXT2_IM_USER_READ
+                                                    | EXT2_IM_DIRECTORY;
+        r_inodes[EXT2_RVDI_ROOT].uid                = 0;
+        r_inodes[EXT2_RVDI_ROOT].size               = 1 * block_size;
+        r_inodes[EXT2_RVDI_ROOT].atime              = sb->filesystem_created;
+        r_inodes[EXT2_RVDI_ROOT].ctime              = sb->filesystem_created;
+        r_inodes[EXT2_RVDI_ROOT].mtime              = sb->filesystem_created;
+        r_inodes[EXT2_RVDI_ROOT].dtime              = sb->filesystem_created;
+        r_inodes[EXT2_RVDI_ROOT].gid                = 0;
+        r_inodes[EXT2_RVDI_ROOT].links_count        = 3;
+        r_inodes[EXT2_RVDI_ROOT].blocks             =
+                r_inodes[EXT2_RVDI_ROOT].size / 512;
+        r_inodes[EXT2_RVDI_ROOT].flags              = 0;
+        r_inodes[EXT2_RVDI_ROOT].block[0]           =
+                sb->total_reserved_blocks +
+                ((sb->total_inodes * sb->inode_size) /
+                 (1024 << sb->block_size_shift)) + gd->inode_table_block;
+        r_inodes[EXT2_RVDI_ROOT].generation         = 0;
+        r_inodes[EXT2_RVDI_ROOT].file_acl           = 0;
+        r_inodes[EXT2_RVDI_ROOT].dir_acl            = 0;
+        r_inodes[EXT2_RVDI_ROOT].fragment_address   = 0;
+        r_inodes[EXT2_RVDI_ROOT].osd2[0]            = 0;
+
+        r_inodes[EXT4_RVDI_REPLICA].mode            = EXT2_IM_USER_EXECUTE
+                                                    | EXT2_IM_USER_WRITE
+                                                    | EXT2_IM_USER_READ
+                                                    | EXT2_IM_DIRECTORY;
+        r_inodes[EXT4_RVDI_REPLICA].uid             = 0;
+        r_inodes[EXT4_RVDI_REPLICA].size            = 12 * block_size;
+        r_inodes[EXT4_RVDI_REPLICA].atime           = sb->filesystem_created;
+        r_inodes[EXT4_RVDI_REPLICA].ctime           = sb->filesystem_created;
+        r_inodes[EXT4_RVDI_REPLICA].mtime           = sb->filesystem_created;
+        r_inodes[EXT4_RVDI_REPLICA].dtime           = sb->filesystem_created;
+        r_inodes[EXT4_RVDI_REPLICA].gid                = 0;
+        r_inodes[EXT4_RVDI_REPLICA].links_count        = 3;
+        r_inodes[EXT4_RVDI_REPLICA].blocks             =
+                r_inodes[EXT4_RVDI_REPLICA].size / 512;
+        r_inodes[EXT4_RVDI_REPLICA].flags              = 0;
+        r_inodes[EXT4_RVDI_REPLICA].block[0]           =
+                r_inodes[EXT2_RVDI_ROOT].block[0] + 1;
+        r_inodes[EXT4_RVDI_REPLICA].block[1]           =
+                r_inodes[EXT4_RVDI_REPLICA].block[0] + 1;
+        r_inodes[EXT4_RVDI_REPLICA].block[2]           =
+                r_inodes[EXT4_RVDI_REPLICA].block[1] + 1;
+        r_inodes[EXT4_RVDI_REPLICA].block[3]           =
+                r_inodes[EXT4_RVDI_REPLICA].block[2] + 1;
+        r_inodes[EXT4_RVDI_REPLICA].block[4]           =
+                r_inodes[EXT4_RVDI_REPLICA].block[3] + 1;
+        r_inodes[EXT4_RVDI_REPLICA].block[5]           =
+                r_inodes[EXT4_RVDI_REPLICA].block[4] + 1;
+        r_inodes[EXT4_RVDI_REPLICA].block[6]           =
+                r_inodes[EXT4_RVDI_REPLICA].block[5] + 1;
+        r_inodes[EXT4_RVDI_REPLICA].block[7]           =
+                r_inodes[EXT4_RVDI_REPLICA].block[6] + 1;
+        r_inodes[EXT4_RVDI_REPLICA].block[8]           =
+                r_inodes[EXT4_RVDI_REPLICA].block[7] + 1;
+        r_inodes[EXT4_RVDI_REPLICA].block[9]           =
+                r_inodes[EXT4_RVDI_REPLICA].block[8] + 1;
+        r_inodes[EXT4_RVDI_REPLICA].block[10]          =
+                r_inodes[EXT4_RVDI_REPLICA].block[9] + 1;
+        r_inodes[EXT4_RVDI_REPLICA].block[11]          =
+                r_inodes[EXT4_RVDI_REPLICA].block[10] + 1;
+        r_inodes[EXT4_RVDI_REPLICA].generation         = 0;
+        r_inodes[EXT4_RVDI_REPLICA].file_acl           = 0;
+        r_inodes[EXT4_RVDI_REPLICA].dir_acl            = 0;
+        r_inodes[EXT4_RVDI_REPLICA].fragment_address   = 0;
+        r_inodes[EXT4_RVDI_REPLICA].osd2[0]            = 0;
+
+        return r_inodes;
 }
