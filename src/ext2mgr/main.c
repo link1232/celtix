@@ -8,6 +8,7 @@ int main(int argc, char *argv[])
         struct ext2_super_block         sb            = { 0 };
         struct ext2_group_descriptor    gd            = { 0 };
         struct ext2_inode               *resvd_inodes = NULL;
+        struct ext2_file                *root_dir     = NULL;
 
         if (argc < 2) {
                 usage();
@@ -20,6 +21,7 @@ int main(int argc, char *argv[])
         init_ext2_super_block(&sb, &cmd_line);
         init_ext2_group_desc(&sb, &gd);
         resvd_inodes = init_ext2_resvd_inodes(&sb, &gd);
+        root_dir     = init_ext2_root_dir(&sb);
 
         return EXIT_SUCCESS;
 }
@@ -312,7 +314,7 @@ struct ext2_inode * init_ext2_resvd_inodes(struct ext2_super_block *sb,
         struct ext2_inode *r_inodes;
 
         r_inodes = (struct ext2_inode *) calloc(TOTAL_RESERVED_INODES,
-                                                    sizeof(struct ext2_inode));
+                                                sizeof(struct ext2_inode));
         if (NULL == r_inodes) {
                 printf("Error: Failed to get memory for reserved inodes\n");
                 exit(EXIT_FAILURE);
@@ -377,4 +379,44 @@ struct ext2_inode * init_ext2_resvd_inodes(struct ext2_super_block *sb,
         r_inodes[EXT4_RVDI_REPLICA].osd2[0]          = 0;
 
         return r_inodes;
+}
+
+struct ext2_file * init_ext2_root_dir(struct ext2_super_block *sb)
+{
+        unsigned long     temp;
+        unsigned long     block_size;
+        struct ext2_file *root_dir;
+
+        root_dir = (struct ext2_file *) calloc(3, sizeof(struct ext2_file));
+
+        if (NULL == root_dir) {
+                printf("Error: Could not allocate memory for root_dir\n");
+                exit(EXIT_FAILURE);
+        }
+
+        block_size = (1024 << sb->block_size_shift);
+        temp       = sizeof(struct ext2_file) - sizeof(root_dir[0].name);
+
+        root_dir[0].inode         = EXT2_RVDI_ROOT;
+        root_dir[0].file_type     = EXT2_FT_DIRECTORY;
+        sprintf(root_dir[0].name, ".");
+        root_dir[0].name_length   = strlen(root_dir[0].name);
+        root_dir[0].record_length = (temp + root_dir[0].name_length) +
+                ((block_size - (temp + root_dir[0].name_length)) % 4);
+
+        root_dir[1].inode         = EXT2_RVDI_ROOT;
+        root_dir[1].file_type     = EXT2_FT_DIRECTORY;
+        sprintf(root_dir[1].name, "..");
+        root_dir[1].name_length   = strlen(root_dir[1].name);
+        root_dir[1].record_length = (temp + root_dir[1].name_length) +
+                ((block_size - (temp + root_dir[1].name_length)) % 4);
+
+        root_dir[2].inode         = EXT4_RVDI_REPLICA;
+        root_dir[2].file_type     = EXT2_FT_DIRECTORY;
+        sprintf(root_dir[2].name, "lost+found");
+        root_dir[2].name_length   = strlen(root_dir[2].name);
+        root_dir[2].record_length = block_size -
+                root_dir[0].record_length - root_dir[1].record_length;
+
+        return root_dir;
 }

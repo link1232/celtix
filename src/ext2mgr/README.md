@@ -6,5 +6,5 @@ A simple program to create, and add files to, an ext2 file system. Resulting fil
 - [X] Initialize super block.
 - [X] Initialize group descriptors.
 - [X] Initialize inode table.
-- [ ] Initialize root and lost+found directories.
+- [X] Initialize root and lost+found directories.
 - [ ] Write blocks.
